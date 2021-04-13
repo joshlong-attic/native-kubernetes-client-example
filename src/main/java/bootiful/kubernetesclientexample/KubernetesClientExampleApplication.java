@@ -15,10 +15,9 @@ import io.kubernetes.client.openapi.models.V1Node;
 import io.kubernetes.client.openapi.models.V1NodeList;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodList;
-import io.kubernetes.client.util.ClientBuilder;
+import io.kubernetes.client.util.Config;
 import io.kubernetes.client.util.generic.GenericKubernetesApi;
 import lombok.SneakyThrows;
-import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -26,15 +25,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
 import java.util.Objects;
-
 
 /**
  * @author Dave Syer
  * @author Josh Long
  */
-
 @SpringBootApplication
 public class KubernetesClientExampleApplication {
 
@@ -50,43 +46,30 @@ public class KubernetesClientExampleApplication {
             System.out.println("starting informers..");
             sharedInformerFactory.startAllRegisteredInformers();
 
-            System.out.println("running controller..");
+            System.out.println("running controllers..");
             controller.run();
         };
     }
 
     @Bean
     Controller nodePrintingController(SharedInformerFactory sharedInformerFactory, NodePrintingReconciler reconciler) {
-        var builder = ControllerBuilder
+        return ControllerBuilder
                 .defaultBuilder(sharedInformerFactory)
                 .watch(q -> ControllerBuilder.controllerWatchBuilder(V1Node.class, q).build())
-                .withReadyFunc(reconciler::informerReady);
-        return builder
+                .withReadyFunc(reconciler::informerReady)
                 .withReconciler(reconciler)
                 .withName("nodePrintingController")
                 .build();
     }
 
     @Bean
-    SharedIndexInformer<V1Node> nodeInformer(ApiClient apiClient,
-                                             SharedInformerFactory sharedInformerFactory) {
-
-        return sharedInformerFactory.sharedIndexInformerFor(
-                new GenericKubernetesApi<V1Node, V1NodeList>(V1Node.class,
-                        V1NodeList.class, "", "v1", "nodes", apiClient)
-                , V1Node.class, 0);
+    SharedIndexInformer<V1Node> nodeInformer(ApiClient apiClient, SharedInformerFactory sharedInformerFactory) {
+        return sharedInformerFactory.sharedIndexInformerFor(new GenericKubernetesApi<>(V1Node.class, V1NodeList.class, "", "v1", "nodes", apiClient), V1Node.class, 0);
     }
 
     @Bean
-    SharedIndexInformer<V1Pod> podInformer(
-            ApiClient apiClient,
-            SharedInformerFactory sharedInformerFactory) {
-
-        var api = new GenericKubernetesApi<>(V1Pod.class, V1PodList.class,
-                "", "v1", "pods", apiClient);
-        return sharedInformerFactory
-                .sharedIndexInformerFor(api, V1Pod.class, 0);
-
+    SharedIndexInformer<V1Pod> podInformer(ApiClient apiClient, SharedInformerFactory sharedInformerFactory) {
+        return sharedInformerFactory.sharedIndexInformerFor(new GenericKubernetesApi<>(V1Pod.class, V1PodList.class, "", "v1", "pods", apiClient), V1Pod.class, 0);
     }
 
     @Bean
@@ -98,27 +81,19 @@ public class KubernetesClientExampleApplication {
     Lister<V1Pod> podLister(SharedIndexInformer<V1Pod> podInformer) {
         return new Lister<>(podInformer.getIndexer());
     }
-
 }
 
 @Component
 class NodePrintingReconciler implements Reconciler {
 
-
     private final String namespace;
-
-    private SharedInformer<V1Node> nodeInformer;
-
-    private SharedInformer<V1Pod> podInformer;
-
-    private Lister<V1Node> nodeLister;
-
-    private Lister<V1Pod> podLister;
-
+    private final SharedInformer<V1Node> nodeInformer;
+    private final SharedInformer<V1Pod> podInformer;
+    private final Lister<V1Node> nodeLister;
+    private final Lister<V1Pod> podLister;
 
     NodePrintingReconciler(@Value("${namespace}") String namespace, SharedInformer<V1Node> nodeInformer, SharedInformer<V1Pod> podInformer,
                            Lister<V1Node> nodeLister, Lister<V1Pod> podLister) {
-        super();
         this.namespace = namespace;
         this.nodeInformer = nodeInformer;
         this.podInformer = podInformer;
