@@ -80,6 +80,8 @@ public class KubernetesClientExampleApplication {
 		return new Lister<>(podInformer.getIndexer());
 	}
 
+
+
 }
 
 @Component
