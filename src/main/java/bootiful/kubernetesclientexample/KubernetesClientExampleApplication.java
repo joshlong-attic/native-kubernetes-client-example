@@ -21,9 +21,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
 import java.util.Objects;
 
 /**
@@ -36,6 +38,16 @@ public class KubernetesClientExampleApplication {
 	@SneakyThrows
 	public static void main(String[] args) {
 		SpringApplication.run(KubernetesClientExampleApplication.class, args);
+	}
+
+	@Bean
+	CommandLineRunner homeDirectoryRunner() {
+		return args -> {
+			File home = new File(System.getenv("HOME"));
+			File kubeconfig = new File(home, ".kube/config");
+			System.out.println(kubeconfig.getAbsolutePath());
+			System.out.println(kubeconfig.exists());
+		};
 	}
 
 	@Bean
@@ -79,8 +91,6 @@ public class KubernetesClientExampleApplication {
 	Lister<V1Pod> podLister(SharedIndexInformer<V1Pod> podInformer) {
 		return new Lister<>(podInformer.getIndexer());
 	}
-
-
 
 }
 
